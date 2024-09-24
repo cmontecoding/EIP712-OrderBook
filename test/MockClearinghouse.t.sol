@@ -8,6 +8,10 @@ import {IClearinghouse} from "synthetix-v3/markets/perps-market/contracts/interf
 contract MockClearingHouseTest is Test {
 
     MockClearinghouse clearingHouse;
+    uint256 owner1PrivateKey = 123;
+    address owner1 = vm.addr(owner1PrivateKey);
+    uint256 owner2PrivateKey = 456;
+    address owner2 = vm.addr(owner2PrivateKey);
 
     function setUp() public {
         clearingHouse = new MockClearinghouse();
@@ -20,9 +24,40 @@ contract MockClearingHouseTest is Test {
         assertEq(response.data, "Settlement successful");
     }
 
+    function testHash() public {
+        MockClearinghouse.Order memory order = createRequest().orders[0];
+        bytes32 hash = clearingHouse.hash(order);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner1PrivateKey, hash);
+
+        address signer = ecrecover(hash, v, r, s);
+        assertEq(owner1, signer);
+
+        // // Pack the ECDSA signature
+        // bytes memory packedSignature = abi.encodePacked(r, s, v);
+    }
+
     // helpers
 
-    function createRequest() public returns(MockClearinghouse.Request memory) {
+    function createRequest() public returns(MockClearinghouse.Request memory) {        
+        IClearinghouse.Order memory order = createOrder();
+        bytes32 hash = clearingHouse.hash(order);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner1PrivateKey, hash);
+        // Pack the ECDSA signature
+        bytes memory packedSignature = abi.encodePacked(r, s, v);
+
+        IClearinghouse.Order[] memory orders = new IClearinghouse.Order[](1);
+        orders[0] = order;
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = packedSignature;
+
+        return IClearinghouse.Request({
+            orders: orders,
+            signatures: signatures
+        });
+    }
+
+    function createOrder() public returns(MockClearinghouse.Order memory) {
         IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
             genesis: 0,
             expiration: 0,
@@ -60,14 +95,7 @@ contract MockClearingHouseTest is Test {
             conditions: conditions
         });
 
-        IClearinghouse.Order[] memory orders = new IClearinghouse.Order[](1);
-        orders[0] = order;
-        bytes[] memory signatures = new bytes[](1);
-
-        return IClearinghouse.Request({
-            orders: orders,
-            signatures: signatures
-        });
+        return order;
     }
 
 }
