@@ -1,0 +1,2 @@
+forge-std/=lib/forge-std/src/
+synthetix-v3/=lib/synthetix-v3/
