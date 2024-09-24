@@ -48,12 +48,45 @@ contract MockClearinghouse is IClearinghouse {
     function canSettle(
         Request calldata request
     ) external view override returns (Response memory) {
+        if (request.orders.length > 2) {
+            return Response({success: false, data: "Too many orders"});
+        } else if (request.orders.length == 0) {
+            return Response({success: false, data: "No orders"});
+        } else if (request.orders.length == 1) {
+            return Response({success: false, data: "Not enough orders"});
+        }
+        if (request.signatures.length != request.orders.length) {
+            return
+                Response({
+                    success: false,
+                    data: "Invalid number of signatures"
+                });
+        }
+        for (uint256 i = 0; i < request.orders.length; i++) {
+            Order memory order = request.orders[i];
+            bytes memory signature = request.signatures[i];
+            // assume that the signature needs to be converted to v, r, s
+            (uint8 v, bytes32 r, bytes32 s) = splitSignature(signature);
+            address signer = ecrecover(hash(order), v, r, s);
+            address trader = order.trader.signer;
+            if (signer != trader) {
+                return
+                    Response({
+                        success: false,
+                        data: "Invalid signature for order"
+                    });
+            }
+        }
+        if (request.orders[0].trade.price != request.orders[1].trade.price) {
+            return Response({success: false, data: "Invalid trade pair"});
+        } // todo also assert its == pyth
+        // todo assert that the trades are opposites (short and long)
         return Response({success: true, data: "Settlement successful"});
     }
 
     function hash(
-        Order calldata order
-    ) external view override returns (bytes32) {
+        Order memory order
+    ) public view override returns (bytes32) {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
@@ -152,5 +185,16 @@ contract MockClearinghouse is IClearinghouse {
             chainId := chainid()
         }
         return chainId;
+    }
+
+    function splitSignature(
+        bytes memory sig
+    ) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
+        require(sig.length == 65, "invalid signature length");
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
     }
 }

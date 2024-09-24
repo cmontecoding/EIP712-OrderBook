@@ -24,6 +24,13 @@ contract MockClearingHouseTest is Test {
         assertEq(response.data, "Settlement successful");
     }
 
+    function testCanSettle() public {
+        MockClearinghouse.Request memory request = createRequest();
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(request);
+        assertTrue(response.success);
+        assertEq(response.data, "Settlement successful");
+    }
+
     function testHash() public {
         MockClearinghouse.Order memory order = createRequest().orders[0];
         bytes32 hash = clearingHouse.hash(order);
@@ -33,8 +40,8 @@ contract MockClearingHouseTest is Test {
         address signer = ecrecover(hash, v, r, s);
         assertEq(owner1, signer);
 
-        // // Pack the ECDSA signature
-        // bytes memory packedSignature = abi.encodePacked(r, s, v);
+        // i know this doesnt actually test the hash function
+        // still thinking about how to test, prob only offchain
     }
 
     // helpers
@@ -46,10 +53,12 @@ contract MockClearingHouseTest is Test {
         // Pack the ECDSA signature
         bytes memory packedSignature = abi.encodePacked(r, s, v);
 
-        IClearinghouse.Order[] memory orders = new IClearinghouse.Order[](1);
+        IClearinghouse.Order[] memory orders = new IClearinghouse.Order[](2);
         orders[0] = order;
-        bytes[] memory signatures = new bytes[](1);
+        orders[1] = order;
+        bytes[] memory signatures = new bytes[](2);
         signatures[0] = packedSignature;
+        signatures[1] = packedSignature;
 
         return IClearinghouse.Request({
             orders: orders,
@@ -68,7 +77,7 @@ contract MockClearingHouseTest is Test {
         IClearinghouse.Trader memory trader = IClearinghouse.Trader({
             accountId: 1,
             nonce: 0,
-            signer: address(this)
+            signer: owner1
         });
 
         IClearinghouse.Trade memory trade = IClearinghouse.Trade({
