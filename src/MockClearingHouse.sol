@@ -93,42 +93,44 @@ contract MockClearinghouse is IClearinghouse {
             abi.encode(
                 DOMAIN_TYPEHASH,
                 keccak256(bytes(name)),
-                getChainId(),
+                _getChainId(),
                 address(this)
             )
         );
-        bytes32 structHash = hashOrder(order);
+        bytes32 structHash = _hashOrder(order);
         bytes32 digest = keccak256(
             abi.encodePacked("\x19\x01", domainSeparator, structHash)
         );
         return digest;
     }
 
-    // helper functions
+    /*///////////////////////////////////////////////////////////////
+                                INTERNALS
+    ///////////////////////////////////////////////////////////////*/
 
-    function hashOrder(Order memory order) public pure returns (bytes32) {
+    function _hashOrder(Order memory order) internal pure returns (bytes32) {
         bytes32[] memory conditionHashes = new bytes32[](
             order.conditions.length
         );
         for (uint256 i = 0; i < order.conditions.length; i++) {
-            conditionHashes[i] = hashCondition(order.conditions[i]);
+            conditionHashes[i] = _hashCondition(order.conditions[i]);
         }
 
         return
             keccak256(
                 abi.encode(
                     ORDER_TYPEHASH,
-                    hashMetadata(order.metadata),
-                    hashTrader(order.trader),
-                    hashTrade(order.trade),
+                    _hashMetadata(order.metadata),
+                    _hashTrader(order.trader),
+                    _hashTrade(order.trade),
                     keccak256(abi.encodePacked(conditionHashes))
                 )
             );
     }
 
-    function hashMetadata(
+    function _hashMetadata(
         Metadata memory metadata
-    ) public pure returns (bytes32) {
+    ) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
@@ -141,7 +143,7 @@ contract MockClearinghouse is IClearinghouse {
             );
     }
 
-    function hashTrader(Trader memory trader) public pure returns (bytes32) {
+    function _hashTrader(Trader memory trader) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
@@ -153,7 +155,7 @@ contract MockClearinghouse is IClearinghouse {
             );
     }
 
-    function hashTrade(Trade memory trade) public pure returns (bytes32) {
+    function _hashTrade(Trade memory trade) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
@@ -166,9 +168,9 @@ contract MockClearinghouse is IClearinghouse {
             );
     }
 
-    function hashCondition(
+    function _hashCondition(
         Condition memory condition
-    ) public pure returns (bytes32) {
+    ) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
@@ -181,7 +183,7 @@ contract MockClearinghouse is IClearinghouse {
             );
     }
 
-    function getChainId() internal view returns (uint) {
+    function _getChainId() internal view returns (uint) {
         uint chainId;
         assembly {
             chainId := chainid()
