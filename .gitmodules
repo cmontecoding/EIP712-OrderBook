@@ -4,3 +4,6 @@
 [submodule "lib/synthetix-v3"]
 	path = lib/synthetix-v3
 	url = https://github.com/Synthetixio/synthetix-v3
+[submodule "lib/solady"]
+	path = lib/solady
+	url = https://github.com/Vectorized/solady

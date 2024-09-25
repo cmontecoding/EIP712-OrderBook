@@ -1,2 +1,3 @@
 forge-std/=lib/forge-std/src/
+solady/=lib/solady/src/
 synthetix-v3/=lib/synthetix-v3/

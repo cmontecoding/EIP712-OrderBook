@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IClearinghouse} from "synthetix-v3/markets/perps-market/contracts/interfaces/IClearinghouse.sol";
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
 contract MockClearinghouse is IClearinghouse {
     /// @notice The name of this contract
@@ -65,11 +66,12 @@ contract MockClearinghouse is IClearinghouse {
         for (uint256 i = 0; i < request.orders.length; i++) {
             Order memory order = request.orders[i];
             bytes memory signature = request.signatures[i];
-            // assume that the signature needs to be converted to v, r, s
-            (uint8 v, bytes32 r, bytes32 s) = splitSignature(signature);
-            address signer = ecrecover(hash(order), v, r, s);
-            address trader = order.trader.signer;
-            if (signer != trader) {
+            bool validSignature = SignatureCheckerLib.isValidSignatureNow(
+                order.trader.signer,
+                hash(order),
+                signature
+            );
+            if (!validSignature) {
                 return
                     Response({
                         success: false,
@@ -185,16 +187,5 @@ contract MockClearinghouse is IClearinghouse {
             chainId := chainid()
         }
         return chainId;
-    }
-
-    function splitSignature(
-        bytes memory sig
-    ) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
-        require(sig.length == 65, "invalid signature length");
-        assembly {
-            r := mload(add(sig, 32))
-            s := mload(add(sig, 64))
-            v := byte(0, mload(add(sig, 96)))
-        }
     }
 }
