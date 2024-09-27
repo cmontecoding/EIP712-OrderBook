@@ -17,7 +17,13 @@ contract MockClearinghouse is IClearinghouse {
     /// @notice The EIP-712 typehash for the order struct used by the contract
     bytes32 public constant ORDER_TYPEHASH =
         keccak256(
-            "Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Metadata(uint256 genesis,uint256 expiration,string trackingCode,address referrer)Trader(address traderAddress,uint256 traderId)Trade(uint256 tradeId,uint256 amount)Condition(uint256 conditionId,string conditionType)"
+            "Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Condition(uint256 conditionId,string conditionType)Metadata(uint256 genesis,uint256 expiration,string trackingCode,address referrer)Trade(uint256 tradeId,uint256 amount)Trader(address traderAddress,uint256 traderId)"
+        );
+
+    /// @notice The EIP-712 typehash for the condition struct used by the order struct
+    bytes32 public constant CONDITION_TYPEHASH =
+        keccak256(
+            "Condition(address target,bytes4 selector,bytes data,bytes32 expected)"
         );
 
     /// @notice The EIP-712 typehash for the metadata struct used by the order struct
@@ -26,19 +32,14 @@ contract MockClearinghouse is IClearinghouse {
             "Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)"
         );
 
-    /// @notice The EIP-712 typehash for the trader struct used by the order struct
-    bytes32 public constant TRADER_TYPEHASH =
-        keccak256("Trader(uint256 nonce,uint128 accountId,address signer)");
-
     /// @notice The EIP-712 typehash for the trade struct used by the order struct
     bytes32 public constant TRADE_TYPEHASH =
         keccak256("Trade(Type t,uint128 marketId,int128 size,uint256 price)");
 
-    /// @notice The EIP-712 typehash for the condition struct used by the order struct
-    bytes32 public constant CONDITION_TYPEHASH =
-        keccak256(
-            "Condition(address target,bytes4 selector,bytes data,bytes32 expected)"
-        );
+    /// @notice The EIP-712 typehash for the trader struct used by the order struct
+    bytes32 public constant TRADER_TYPEHASH =
+        keccak256("Trader(uint256 nonce,uint128 accountId,address signer)");
+
 
     function settle(
         Request calldata request
@@ -104,6 +105,25 @@ contract MockClearinghouse is IClearinghouse {
         return digest;
     }
 
+    // for testing
+    function hashExposed(
+        Order memory order
+    ) public returns (bytes32, bytes32, bytes32) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                DOMAIN_TYPEHASH,
+                keccak256(bytes(name)),
+                _getChainId(),
+                address(this)
+            )
+        );
+        bytes32 structHash = _hashOrder(order);
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", domainSeparator, structHash)
+        );
+        return (digest, domainSeparator, structHash); //temp testing
+    }
+
     /*///////////////////////////////////////////////////////////////
                                 INTERNALS
     ///////////////////////////////////////////////////////////////*/
@@ -120,10 +140,25 @@ contract MockClearinghouse is IClearinghouse {
             keccak256(
                 abi.encode(
                     ORDER_TYPEHASH,
+                    keccak256(abi.encodePacked(conditionHashes)),
                     _hashMetadata(order.metadata),
-                    _hashTrader(order.trader),
                     _hashTrade(order.trade),
-                    keccak256(abi.encodePacked(conditionHashes))
+                    _hashTrader(order.trader)
+                )
+            );   
+    }
+
+    function _hashCondition(
+        Condition memory condition
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    CONDITION_TYPEHASH,
+                    condition.target,
+                    condition.selector,
+                    keccak256(condition.data),
+                    condition.expected
                 )
             );
     }
@@ -143,18 +178,6 @@ contract MockClearinghouse is IClearinghouse {
             );
     }
 
-    function _hashTrader(Trader memory trader) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    TRADER_TYPEHASH,
-                    trader.nonce,
-                    trader.accountId,
-                    trader.signer
-                )
-            );
-    }
-
     function _hashTrade(Trade memory trade) internal pure returns (bytes32) {
         return
             keccak256(
@@ -168,20 +191,17 @@ contract MockClearinghouse is IClearinghouse {
             );
     }
 
-    function _hashCondition(
-        Condition memory condition
-    ) internal pure returns (bytes32) {
+    function _hashTrader(Trader memory trader) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
-                    CONDITION_TYPEHASH,
-                    condition.target,
-                    condition.selector,
-                    keccak256(condition.data),
-                    condition.expected
+                    TRADER_TYPEHASH,
+                    trader.nonce,
+                    trader.accountId,
+                    trader.signer
                 )
             );
-    }
+    }  
 
     function _getChainId() internal view returns (uint) {
         uint chainId;
