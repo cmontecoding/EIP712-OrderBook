@@ -31,6 +31,8 @@ contract MockClearingHouseTest is Test {
         assertEq(response.data, "Settlement successful");
     }
 
+    /// @dev this test is not the best way to test the hash function (best is off chain)
+    /// this is more for sanity check
     function testHash() public {
         MockClearinghouse.Order memory order = createRequest().orders[0];
         bytes32 hash = clearingHouse.hash(order);
@@ -39,9 +41,6 @@ contract MockClearingHouseTest is Test {
 
         address signer = ecrecover(hash, v, r, s);
         assertEq(owner1, signer);
-
-        // i know this doesnt actually test the hash function
-        // still thinking about how to test, prob only offchain
     }
 
     // helpers
