@@ -21,7 +21,7 @@ const contractABI = JSON.parse(readFileSync("out/MockClearingHouse.sol/MockClear
 // Define the EIP-712 domain
 const domain = ({
   name: "Mock Clearinghouse",
-  chainId: 10,
+  chainId: 8453,
   verifyingContract: process.env.CONTRACT_ADDRESS as `0x${string}`
 })
 
