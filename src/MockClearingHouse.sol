@@ -17,7 +17,7 @@ contract MockClearinghouse is IClearinghouse {
     /// @notice The EIP-712 typehash for the order struct used by the contract
     bytes32 public constant ORDER_TYPEHASH =
         keccak256(
-            "Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Condition(address target,bytes4 selector,bytes data,bytes32 expected)Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)Trade(Type t,uint128 marketId,int128 size,uint256 price)Trader(uint256 nonce,uint128 accountId,address signer)"
+            "Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Condition(address target,bytes4 selector,bytes data,bytes32 expected)Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)Trade(uint8 t,uint128 marketId,int128 size,uint256 price)Trader(uint256 nonce,uint128 accountId,address signer)"
         );
 
     /// @notice The EIP-712 typehash for the condition struct used by the order struct
@@ -34,7 +34,7 @@ contract MockClearinghouse is IClearinghouse {
 
     /// @notice The EIP-712 typehash for the trade struct used by the order struct
     bytes32 public constant TRADE_TYPEHASH =
-        keccak256("Trade(Type t,uint128 marketId,int128 size,uint256 price)");
+        keccak256("Trade(uint8 t,uint128 marketId,int128 size,uint256 price)");
 
     /// @notice The EIP-712 typehash for the trader struct used by the order struct
     bytes32 public constant TRADER_TYPEHASH =
