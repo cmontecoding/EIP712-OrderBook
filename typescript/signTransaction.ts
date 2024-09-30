@@ -1,4 +1,4 @@
-const { getAddress, keccak256, createPublicClient, http, createWalletClient, getContract, stringToBytes, defineChain, encodeAbiParameters, parseAbiParameters, toBytes, concat } = require('viem');
+const { pad, hexToBytes, getAddress, keccak256, createPublicClient, http, createWalletClient, getContract, stringToBytes, defineChain, encodeAbiParameters, parseAbiParameters, toBytes, concat } = require('viem');
 import { privateKeyToAccount } from 'viem/accounts'
 const { readFileSync } = require('fs');
 const { config } = require('dotenv');
@@ -95,8 +95,8 @@ type FullOrder = {
 const order: FullOrder = {
   conditions: [
     {
-      target: "0x1234567890abcdef1234567890abcdef12345678",
-      selector: '0x' + Buffer.from('someFunction()').toString('hex').slice(0, 8),
+      target: "0x1234567890AbcdEF1234567890aBcdef12345678",
+      selector: "0x35b09a6e",
       data: '0x' + Buffer.from('data').toString('hex'),
       expected: '0x' + Buffer.from('expected').toString('hex').padEnd(64, '0')
     }
@@ -105,7 +105,7 @@ const order: FullOrder = {
     genesis: 1,
     expiration: 2,
     trackingCode: '0x' + Buffer.from('KWENTA').toString('hex').padEnd(64, '0'),
-    referrer: "0x1234567890abcdef1234567890abcdef12345678"
+    referrer: "0x1234567890AbcdEF1234567890aBcdef12345678"
   },
   trade: {
     t: 0, // BUY
@@ -187,10 +187,14 @@ async function signOrder() {
     keccak256(
       encodeAbiParameters(
         parseAbiParameters('bytes32, address, bytes4, bytes, bytes32'),
-        [CONDITION_TYPEHASH, condition.target, condition.selector, keccak256(condition.data), condition.expected]
+        [CONDITION_TYPEHASH, condition.target, condition.selector, condition.data, condition.expected]
       )
     )
   )
+
+  if (conditionHashes[0] !== '0xbde287ad2f06064fff4a014e3d93a86d8264413f567c911c6a26ab921fa1d4c5') {
+    throw new Error("CONDITION_HASH mismatch")
+  }
 
   // Hash the array of condition hashes using tight packing (encodePacked)
   const conditionsHash = keccak256(
@@ -205,6 +209,10 @@ async function signOrder() {
     )
   )
 
+  if (metadataHash !== '0x6609a75dcac514ae8a054c1e4e48c2ae0f429cf00c70f18debcead49624701c4') {
+    throw new Error("METADATA_HASH mismatch")
+  }
+
   // Hash the trade
   const tradeHash = keccak256(
     encodeAbiParameters(
@@ -213,6 +221,10 @@ async function signOrder() {
     )
   )
 
+  if (tradeHash !== '0x3de551bc2a7cc85cb9b4546a6e15e5f4e709c46393642ea914ba2282dc1e7a81') {
+    throw new Error("TRADE_HASH mismatch")
+  }
+
   // Hash the trader
   const traderHash = keccak256(
     encodeAbiParameters(
@@ -220,6 +232,10 @@ async function signOrder() {
       [TRADER_TYPEHASH, order.trader.nonce, order.trader.accountId, order.trader.signer]
     )
   )
+
+  if (traderHash !== '0x5a44a495ae61ebfb01c627426271dfc5951c4411a0912b0ef270f7086108f8d6') {
+    throw new Error("TRADER_HASH mismatch")
+  }
 
   // Encode the order using the ORDER_TYPEHASH and component hashes
   const encodedOrder = encodeAbiParameters(
@@ -230,6 +246,10 @@ async function signOrder() {
   // Calculate the hash of the order in the script
   const orderHash = keccak256(encodedOrder)
   console.log("Order Hash (Script):", orderHash)
+
+  if (orderHash !== '0x95d0602f03a09935145b1da0f2febd1483f1c392c31e46db9b41e3cef027c1bf') {
+    throw new Error("ORDER_HASH mismatch")
+  }
 
   // Helper function to create the EIP-712 type hash
   const id = (str: string) => keccak256(toBytes(str))
