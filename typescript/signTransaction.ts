@@ -57,13 +57,6 @@ const orderTypes = {
   ]
 }
 
-enum Type {
-  MARKET,
-  LIMIT,
-  STOP,
-  STOP_LIMIT
-}
-
 // Define the FullOrder type
 type FullOrder = {
   conditions: {
