@@ -1,9 +1,8 @@
-const { createPublicClient, http, createWalletClient, getContract, stringToBytes, defineChain } = require('viem');
+const { getAddress, keccak256, createPublicClient, http, createWalletClient, getContract, stringToBytes, defineChain, encodeAbiParameters, parseAbiParameters, toBytes, concat } = require('viem');
 import { privateKeyToAccount } from 'viem/accounts'
 const { readFileSync } = require('fs');
 const { config } = require('dotenv');
 const { base } = require('viem/chains');
-const { keccak256, defaultAbiCoder, id } = require('ethers').utils;
 
 // Load environment variables from .env file
 config()
@@ -28,95 +27,106 @@ const domain = ({
 // Define the EIP-712 types
 const orderTypes = {
   Order: [
-      { name: "conditions", type: "Condition[]" },
-      { name: "metadata", type: "Metadata" },
-      { name: "trade", type: "Trade" },
-      { name: "trader", type: "Trader" }
+    { name: "conditions", type: "Condition[]" },
+    { name: "metadata", type: "Metadata" },
+    { name: "trade", type: "Trade" },
+    { name: "trader", type: "Trader" }
   ],
   Condition: [
-      { name: "target", type: "address" },
-      { name: "selector", type: "bytes4" },
-      { name: "data", type: "bytes" },
-      { name: "expected", type: "bytes32" }
+    { name: "target", type: "address" },
+    { name: "selector", type: "bytes4" },
+    { name: "data", type: "bytes" },
+    { name: "expected", type: "bytes32" }
   ],
   Metadata: [
-      { name: "genesis", type: "uint256" },
-      { name: "expiration", type: "uint256" },
-      { name: "trackingCode", type: "bytes32" },
-      { name: "referrer", type: "address" }
+    { name: "genesis", type: "uint256" },
+    { name: "expiration", type: "uint256" },
+    { name: "trackingCode", type: "bytes32" },
+    { name: "referrer", type: "address" }
   ],
   Trade: [
-      { name: "t", type: "uint8" },
-      { name: "marketId", type: "uint128" },
-      { name: "size", type: "int128" },
-      { name: "price", type: "uint256" }
+    { name: "t", type: "uint8" },
+    { name: "marketId", type: "uint128" },
+    { name: "size", type: "int128" },
+    { name: "price", type: "uint256" }
   ],
   Trader: [
-      { name: "nonce", type: "uint256" },
-      { name: "accountId", type: "uint128" },
-      { name: "signer", type: "address" }
+    { name: "nonce", type: "uint256" },
+    { name: "accountId", type: "uint128" },
+    { name: "signer", type: "address" }
   ]
+}
+
+enum Type {
+  MARKET,
+  LIMIT,
+  STOP,
+  STOP_LIMIT
 }
 
 // Define the FullOrder type
 type FullOrder = {
   conditions: {
-      target: string,
-      selector: string,
-      data: string,
-      expected: string
+    target: string,
+    selector: string,
+    data: string,
+    expected: string
   }[],
   metadata: {
-      genesis: number,
-      expiration: number,
-      trackingCode: string,
-      referrer: string
+    genesis: number,
+    expiration: number,
+    trackingCode: string,
+    referrer: string
   },
   trade: {
-      t: number,
-      marketId: number,
-      size: number,
-      price: number
+    t: number,
+    marketId: number,
+    size: number,
+    price: number
   },
   trader: {
-      nonce: number,
-      accountId: number,
-      signer: string
+    nonce: number,
+    accountId: number,
+    signer: string
   }
 }
 
 // Define the order data
 const order: FullOrder = {
   conditions: [
-      {
-          target: "0x1234567890abcdef1234567890abcdef12345678",
-          selector: '0x' + Buffer.from('someFunction()').toString('hex').slice(0, 8),
-          data: '0x' + Buffer.from('data').toString('hex'),
-          expected: '0x' + Buffer.from('expected').toString('hex').padEnd(64, '0')
-      }
+    {
+      target: "0x1234567890abcdef1234567890abcdef12345678",
+      selector: '0x' + Buffer.from('someFunction()').toString('hex').slice(0, 8),
+      data: '0x' + Buffer.from('data').toString('hex'),
+      expected: '0x' + Buffer.from('expected').toString('hex').padEnd(64, '0')
+    }
   ],
   metadata: {
-      genesis: 1,
-      expiration: 2,
-      trackingCode: '0x' + Buffer.from('KWENTA').toString('hex').padEnd(64, '0'),
-      referrer: "0x1234567890abcdef1234567890abcdef12345678"
+    genesis: 1,
+    expiration: 2,
+    trackingCode: '0x' + Buffer.from('KWENTA').toString('hex').padEnd(64, '0'),
+    referrer: "0x1234567890abcdef1234567890abcdef12345678"
   },
   trade: {
-      t: 0, // BUY
-      marketId: 1,
-      size: 1,
-      price: 1
+    t: 0, // BUY
+    marketId: 1,
+    size: 1,
+    price: 1
   },
   trader: {
-      nonce: 1,
-      accountId: 1,
-      signer: "0x96aA512665C429cE1454abe871098E4858c9c147"
+    nonce: 1,
+    accountId: 1,
+    signer: "0x96aA512665C429cE1454abe871098E4858c9c147"
   }
 }
 
 // Sign the data
 async function signOrder() {
-  const account = "0x96aA512665C429cE1454abe871098E4858c9c147" as `0x${string}`
+
+  // sanity check
+  if (getAddress(wallet.address) !== getAddress(order.trader.signer)) {
+    throw new Error("Wallet address not equal to order signer")
+  }
 
   const signature = await wallet.signTypedData({
     domain: domain,
@@ -127,44 +137,130 @@ async function signOrder() {
 
   console.log("Signature:", signature)
 
-  // Encode the order object
-  const encodedOrder = defaultAbiCoder.encode(
-    [
-        "tuple(address target, bytes4 selector, bytes data, bytes32 expected)[]",
-        "tuple(uint256 genesis, uint256 expiration, bytes32 trackingCode, address referrer)",
-        "tuple(uint8 t, uint128 marketId, int128 size, uint256 price)",
-        "tuple(uint256 nonce, uint128 accountId, address signer)"
-    ],
-    [order.conditions, order.metadata, order.trade, order.trader]
-);
+  // Define the ORDER_TYPEHASH
+  const ORDER_TYPEHASH = keccak256(
+    new TextEncoder().encode("Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Condition(address target,bytes4 selector,bytes data,bytes32 expected)Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)Trade(uint8 t,uint128 marketId,int128 size,uint256 price)Trader(uint256 nonce,uint128 accountId,address signer)")
+  )
+
+  if (ORDER_TYPEHASH !== '0x1b6b336c5e77095ee4e3043794d375c20a9d5654e11d1bb0c33df1c210e63a49') {
+    throw new Error("ORDER_TYPEHASH mismatch")
+  }
+
+  // Define the CONDITION_TYPEHASH
+  const CONDITION_TYPEHASH = keccak256(
+    new TextEncoder().encode("Condition(address target,bytes4 selector,bytes data,bytes32 expected)")
+  )
+
+  if (CONDITION_TYPEHASH !== '0xa78671e011562296314e133d36fbac3c60cba08a14cd761d9dfff1d94cf16b9d') {
+    throw new Error("CONDITION_TYPEHASH mismatch")
+  }
+
+  // Define the METADATA_TYPEHASH
+  const METADATA_TYPEHASH = keccak256(
+    new TextEncoder().encode("Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)")
+  )
+
+  if (METADATA_TYPEHASH !== '0x3fb26409690ba72074e6ebc22d4e2bca8f0f7c7706a831359b40cede8a69c0f3') {
+    throw new Error("METADATA_TYPEHASH mismatch")
+  }
+
+  // Define the TRADE_TYPEHASH
+  const TRADE_TYPEHASH = keccak256(
+    new TextEncoder().encode("Trade(uint8 t,uint128 marketId,int128 size,uint256 price)")
+  )
+
+  if (TRADE_TYPEHASH !== '0x433c9a5d4b303267c7393b9e107e94fa1583ee7cc66f0c4d412f96baf0314099') {
+    throw new Error("TRADE_TYPEHASH mismatch")
+  }
+
+  // Define the TRADER_TYPEHASH
+  const TRADER_TYPEHASH = keccak256(
+    new TextEncoder().encode("Trader(uint256 nonce,uint128 accountId,address signer)")
+  )
+
+  if (TRADER_TYPEHASH !== '0x2e2f44372bdffa5cfd0ba02a50d853ad42cd226efcb6d6898e058f0d88716f6a') {
+    throw new Error("TRADER_TYPEHASH mismatch")
+  }
+
+  // Hash individual conditions
+  const conditionHashes = order.conditions.map(condition =>
+    keccak256(
+      encodeAbiParameters(
+        parseAbiParameters('bytes32, address, bytes4, bytes, bytes32'),
+        [CONDITION_TYPEHASH, condition.target, condition.selector, keccak256(condition.data), condition.expected]
+      )
+    )
+  )
+
+  // Hash the array of condition hashes
+  const conditionsHash = keccak256(
+    encodeAbiParameters( //todo this has to be encode packed
+      parseAbiParameters('bytes32[]'),
+      [conditionHashes]
+    )
+  )
+
+  // Hash the metadata
+  const metadataHash = keccak256(
+    encodeAbiParameters(
+      parseAbiParameters('bytes32, uint256, uint256, bytes32, address'),
+      [METADATA_TYPEHASH, order.metadata.genesis, order.metadata.expiration, order.metadata.trackingCode, order.metadata.referrer]
+    )
+  )
+
+  // Hash the trade
+  const tradeHash = keccak256(
+    encodeAbiParameters(
+      parseAbiParameters('bytes32, uint8, uint128, int128, uint256'),
+      [TRADE_TYPEHASH, order.trade.t, order.trade.marketId, order.trade.size, order.trade.price]
+    )
+  )
+
+  // Hash the trader
+  const traderHash = keccak256(
+    encodeAbiParameters(
+      parseAbiParameters('bytes32, uint256, uint128, address'),
+      [TRADER_TYPEHASH, order.trader.nonce, order.trader.accountId, order.trader.signer]
+    )
+  )
+
+  // Encode the order using the ORDER_TYPEHASH and component hashes
+  const encodedOrder = encodeAbiParameters(
+    parseAbiParameters('bytes32, bytes32, bytes32, bytes32, bytes32'),
+    [ORDER_TYPEHASH, conditionsHash, metadataHash, tradeHash, traderHash]
+  )
 
   // Calculate the hash of the order in the script
   const orderHash = keccak256(encodedOrder)
   console.log("Order Hash (Script):", orderHash)
 
+  // Helper function to create the EIP-712 type hash
+  const id = (str: string) => keccak256(toBytes(str))
+
   // Calculate domain separator
   const domainSeparator = keccak256(
-    defaultAbiCoder.encode(
-      ["bytes32", "bytes32", "uint256", "address"],
+    encodeAbiParameters(
+      parseAbiParameters('bytes32, bytes32, uint256, address'),
       [
-        id("EIP712Domain(string name,uint256 chainId,address verifyingContract)"),
-        keccak256(Buffer.from(domain.name)),
+        id('EIP712Domain(string name,uint256 chainId,address verifyingContract)'),
+        keccak256(toBytes(domain.name)),
         domain.chainId,
         domain.verifyingContract
       ]
     )
-  );
+  )
 
   // Calculate struct hash
   const structHash = keccak256(encodedOrder);
 
   // Calculate digest
   const digest = keccak256(
-    defaultAbiCoder.encode(
-      ["bytes1", "bytes1", "bytes32", "bytes32"],
-      ["0x19", "0x01", domainSeparator, structHash]
-    )
-  );
+    concat([
+      '0x1901',
+      domainSeparator,
+      structHash
+    ])
+  )
 
   console.log("Domain Separator (Script):", domainSeparator);
   console.log("Struct Hash (Script):", structHash);
@@ -222,7 +318,7 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
   }
 
   try {
-    const [ digest, domainSeparator, structHash ] = await contract.read.hashExposed([order])
+    const [digest, domainSeparator, structHash] = await contract.read.hashExposed([order])
     console.log("Digest (Contract):", digest)
     console.log("Domain Separator (Contract):", domainSeparator)
     console.log("Struct Hash (Contract):", structHash)
