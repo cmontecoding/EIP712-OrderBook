@@ -300,6 +300,26 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
     signatures: [signature, signature]
   }
 
+  const halfFullRequest = {
+    orders: [order],
+    signatures: [signature]
+  }
+
+  const emptyRequest = {
+    orders: [],
+    signatures: []
+  }
+
+  const tooLargeRequest = {
+    orders: [order, order, order],
+    signatures: [signature, signature, signature]
+  }
+
+  const invalidNumberSignaturesRequest = {
+    orders: [order, order],
+    signatures: [signature]
+  }
+
   // Log the request body
   // console.log("Request Body:", JSON.stringify(request, null, 2));
 
@@ -314,6 +334,46 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
   try {
     const response = await contract.read.canSettle([request])
     console.log("Response:", response)
+  } catch (error) {
+    console.error("Error interacting with contract:", error)
+    throw error
+  }
+
+  try {
+    const response = await contract.read.canSettle([halfFullRequest])
+    if (response.data != 0x4e6f7420656e6f756768206f7264657273) {
+      throw new Error("half full request test failed")
+    }
+  } catch (error) {
+    console.error("Error interacting with contract:", error)
+    throw error
+  }
+
+  try {
+    const response = await contract.read.canSettle([emptyRequest])
+    if (response.data != 0x4e6f206f7264657273) {
+      throw new Error("empty request test failed")
+    }
+  } catch (error) {
+    console.error("Error interacting with contract:", error)
+    throw error
+  }
+
+  try {
+    const response = await contract.read.canSettle([tooLargeRequest])
+    if (response.data != 0x546f6f206d616e79206f7264657273) {
+      throw new Error("too large request test failed")
+    }
+  } catch (error) {
+    console.error("Error interacting with contract:", error)
+    throw error
+  }
+
+  try {
+    const response = await contract.read.canSettle([invalidNumberSignaturesRequest])
+    if (response.data != 0x496e76616c6964206e756d626572206f66207369676e617475726573) {
+      throw new Error("invalid number of signatures test failed")
+    }
   } catch (error) {
     console.error("Error interacting with contract:", error)
     throw error
@@ -336,19 +396,6 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
     console.error("Error interacting with contract:", error)
     throw error
   }
-
-  // try {
-  //   const contractOrderHash = await contract.read._hashOrder([order])
-  //   console.log("Order Hash (Contract):", contractOrderHash)
-
-  //   // Compare the hashes
-  //   if (orderHash !== contractOrderHash) {
-  //     throw new Error("Order hash mismatch between script and contract")
-  //   }
-  // } catch (error) {
-  //   console.error("Error interacting with contract:", error)
-  //   throw error
-  // }
 }
 
 async function main() {
