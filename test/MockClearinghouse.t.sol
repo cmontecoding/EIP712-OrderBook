@@ -6,49 +6,165 @@ import {MockClearinghouse} from "../src/MockClearinghouse.sol";
 import {IClearinghouse} from "synthetix-v3/markets/perps-market/contracts/interfaces/IClearinghouse.sol";
 
 contract MockClearingHouseTest is Test {
-
     MockClearinghouse clearingHouse;
     uint256 owner1PrivateKey = 123;
     address owner1 = vm.addr(owner1PrivateKey);
     uint256 owner2PrivateKey = 456;
     address owner2 = vm.addr(owner2PrivateKey);
+    uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+    address deployer = vm.addr(deployerPrivateKey);
 
     function setUp() public {
         clearingHouse = new MockClearinghouse();
     }
 
     function testSettle() public {
-        MockClearinghouse.Request memory request = createRequest();
-        MockClearinghouse.Response memory response = clearingHouse.settle(request);
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        MockClearinghouse.Response memory response = clearingHouse.settle(
+            request
+        );
         assertTrue(response.success);
         assertEq(response.data, "Settlement successful");
     }
 
-    function testCanSettle() public {
-        MockClearinghouse.Request memory request = createRequest();
-        MockClearinghouse.Response memory response = clearingHouse.canSettle(request);
+    function testCanSettleSuccess() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
         assertTrue(response.success);
         assertEq(response.data, "Settlement successful");
     }
 
-    /// @dev this test is not the best way to test the hash function (best is off chain)
-    /// this is more for sanity check
-    function testHash() public {
-        MockClearinghouse.Order memory order = createRequest().orders[0];
+    function testCanSettleTooManyOrders() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.orders = new IClearinghouse.Order[](3);
+        request.signatures = new bytes[](3);
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Too many orders");
+    }
+
+    function testCanSettleNoOrders() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.orders = new IClearinghouse.Order[](0);
+        request.signatures = new bytes[](0);
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "No orders");
+    }
+
+    function testCanSettleNotEnoughOrders() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.orders = new IClearinghouse.Order[](1);
+        request.signatures = new bytes[](1);
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Not enough orders");
+    }
+
+    function testCanSettleInvalidNumberOfSignatures() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.orders = new IClearinghouse.Order[](2);
+        request.signatures = new bytes[](1);
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Invalid number of signatures");
+    }
+
+    function testFuzzCanSettleInvalidNumberOfSignatures(uint8 amount) public {
+        vm.assume(amount != 2);
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.orders = new IClearinghouse.Order[](2);
+        request.signatures = new bytes[](amount);
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Invalid number of signatures");
+    }
+
+    function testCanSettleInvalidSignature() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.signatures[0] = abi.encodePacked(
+            bytes32(0),
+            bytes32(0),
+            uint8(0)
+        );
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Invalid signature for order");
+    }
+
+    function testCanSettleInvalidSignature2() public {
+        MockClearinghouse.Request memory request = createRequest(
+            owner1PrivateKey
+        );
+        request.signatures[1] = abi.encodePacked(
+            bytes32(0),
+            bytes32(0),
+            uint8(0)
+        );
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Invalid signature for order");
+    }
+
+    function testSigner() public {
+        MockClearinghouse.Order memory order = createOrder();
         bytes32 hash = clearingHouse.hash(order);
-
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner1PrivateKey, hash);
 
         address signer = ecrecover(hash, v, r, s);
         assertEq(owner1, signer);
     }
 
+    function testSignerDeployer() public {
+        MockClearinghouse.Order memory order = createOrder();
+        bytes32 hash = clearingHouse.hash(order);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerPrivateKey, hash);
+
+        address signer = ecrecover(hash, v, r, s);
+        assertEq(deployer, signer);
+        assertEq(0x96aA512665C429cE1454abe871098E4858c9c147, signer);
+    }
+
     // helpers
 
-    function createRequest() public returns(MockClearinghouse.Request memory) {        
+    function createRequest(
+        uint256 privateKey
+    ) public returns (MockClearinghouse.Request memory) {
         IClearinghouse.Order memory order = createOrder();
         bytes32 hash = clearingHouse.hash(order);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner1PrivateKey, hash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, hash);
         // Pack the ECDSA signature
         bytes memory packedSignature = abi.encodePacked(r, s, v);
 
@@ -59,13 +175,10 @@ contract MockClearingHouseTest is Test {
         signatures[0] = packedSignature;
         signatures[1] = packedSignature;
 
-        return IClearinghouse.Request({
-            orders: orders,
-            signatures: signatures
-        });
+        return IClearinghouse.Request({orders: orders, signatures: signatures});
     }
 
-    function createOrder() public returns(MockClearinghouse.Order memory) {
+    function createOrder() public returns (MockClearinghouse.Order memory) {
         IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
             genesis: 0,
             expiration: 0,
@@ -93,7 +206,8 @@ contract MockClearingHouseTest is Test {
             expected: ""
         });
 
-        IClearinghouse.Condition[] memory conditions = new IClearinghouse.Condition[](1);
+        IClearinghouse.Condition[]
+            memory conditions = new IClearinghouse.Condition[](1);
         conditions[0] = condition;
 
         IClearinghouse.Order memory order = IClearinghouse.Order({
@@ -105,5 +219,4 @@ contract MockClearingHouseTest is Test {
 
         return order;
     }
-
 }

@@ -8,125 +8,171 @@ import {MockClearinghouseInternals} from "./utils/MockClearinghouseInternals.sol
 import {IClearinghouse} from "synthetix-v3/markets/perps-market/contracts/interfaces/IClearinghouse.sol";
 
 contract OrderHashTest is Test {
-    // OrderSignature orderSignature;
-    // Account account0;
     MockClearinghouseInternals clearinghouse;
 
     function setUp() public {
-        // orderSignature = new OrderSignature();
-        // account0 = makeAccount("a");
         clearinghouse = new MockClearinghouseInternals();
     }
 
-    function testTraderHash() public {
-        IClearinghouse.Trader memory trader = IClearinghouse.Trader({nonce: 0, accountId: 0, signer: address(0)});
+    // test typehashes
 
-        bytes32 traderHash = clearinghouse.hashTrader(trader);
+    function testOrderTypehash() public {
+        bytes32 typeHash = keccak256(
+            "Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Condition(address target,bytes4 selector,bytes data,bytes32 expected)Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)Trade(uint8 t,uint128 marketId,int128 size,uint256 price)Trader(uint256 nonce,uint128 accountId,address signer)"
+        );
+        assertEq(
+            typeHash,
+            0x1b6b336c5e77095ee4e3043794d375c20a9d5654e11d1bb0c33df1c210e63a49
+        );
+    }
 
-        assertEq(traderHash, 0x32adae1fdb72af2c28b8f2ae2cec99d73c162e75615af1f51f7b6f73d8294ac2);
+    function testConditionTypehash() public {
+        bytes32 typeHash = keccak256(
+            "Condition(address target,bytes4 selector,bytes data,bytes32 expected)"
+        );
+        assertEq(
+            typeHash,
+            0xa78671e011562296314e133d36fbac3c60cba08a14cd761d9dfff1d94cf16b9d
+        );
+    }
+
+    function testMetadataTypehash() public {
+        bytes32 typeHash = keccak256(
+            "Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)"
+        );
+        assertEq(
+            typeHash,
+            0x3fb26409690ba72074e6ebc22d4e2bca8f0f7c7706a831359b40cede8a69c0f3
+        );
+    }
+
+    function testTradeTypehash() public {
+        bytes32 typeHash = keccak256(
+            "Trade(uint8 t,uint128 marketId,int128 size,uint256 price)"
+        );
+        assertEq(
+            typeHash,
+            0x433c9a5d4b303267c7393b9e107e94fa1583ee7cc66f0c4d412f96baf0314099
+        );
     }
 
     function testTraderTypehash() public {
-        bytes32 typeHash = keccak256("Trader(uint256 nonce,uint128 accountId,address signer)");
-        assertEq(typeHash, 0x2e2f44372bdffa5cfd0ba02a50d853ad42cd226efcb6d6898e058f0d88716f6a);
+        bytes32 typeHash = keccak256(
+            "Trader(uint256 nonce,uint128 accountId,address signer)"
+        );
+        assertEq(
+            typeHash,
+            0x2e2f44372bdffa5cfd0ba02a50d853ad42cd226efcb6d6898e058f0d88716f6a
+        );
     }
 
-    //IClearinghouse.Trader memory trader = IClearinghouse.Trader({t: IClearinghouse.Type.MARKET, marketId: 0, size: 0, price: 0});
+    // test hashes
 
-    // function test_itemHash() public {
-    //     IFloodPlain.Item memory item = IFloodPlain.Item({token: address(0), amount: 0});
+    function testOrderHash() public {
+        IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
+            genesis: 1,
+            expiration: 2,
+            trackingCode: "KWENTA",
+            referrer: 0x1234567890AbcdEF1234567890aBcdef12345678
+        });
+        IClearinghouse.Trader memory trader = IClearinghouse.Trader({
+            nonce: 1,
+            accountId: 1,
+            signer: 0x96aA512665C429cE1454abe871098E4858c9c147
+        });
+        IClearinghouse.Trade memory trade = IClearinghouse.Trade({
+            t: IClearinghouse.Type.MARKET,
+            marketId: 1,
+            size: 1,
+            price: 1
+        });
+        IClearinghouse.Condition memory condition = IClearinghouse.Condition({
+            target: 0x1234567890AbcdEF1234567890aBcdef12345678,
+            selector: 0x35b09a6e,
+            data: "data",
+            expected: "expected"
+        });
 
-    //     bytes32 itemHash = orderSignature.hash(item);
+        IClearinghouse.Condition[]
+            memory conditions = new IClearinghouse.Condition[](1);
+        conditions[0] = condition;
 
-    //     assertEq(itemHash, 0xcb02862e625f0c341a0dbe9a7495af6982102db3456f3ded5efe8fabd6689904);
-    // }
+        IClearinghouse.Order memory order = IClearinghouse.Order({
+            metadata: metadata,
+            trader: trader,
+            trade: trade,
+            conditions: conditions
+        });
 
-    // function test_hookHash() public {
-    //     IFloodPlain.Hook memory hook = IFloodPlain.Hook({target: address(0), data: hex""});
+        bytes32 orderHash = clearinghouse.hashOrder(order);
 
-    //     bytes32 hookHash = orderSignature.hash(hook);
+        assertEq(
+            orderHash,
+            0x95d0602f03a09935145b1da0f2febd1483f1c392c31e46db9b41e3cef027c1bf
+        );
+    }
 
-    //     assertEq(hookHash, 0xd3b9e9f5bd8a8b242f8319849becb42f8ce6c5c6e9d24f9539f428e8d7e666bd);
-    // }
+    function testConditionHash() public {
+        /// @dev that selector is of "someFunction()"
+        IClearinghouse.Condition memory condition = IClearinghouse.Condition({
+            target: 0x1234567890AbcdEF1234567890aBcdef12345678,
+            selector: 0x35b09a6e,
+            data: "data",
+            expected: "expected"
+        });
 
-    // function test_orderHash() public {
-    //     IFloodPlain.Item memory item = IFloodPlain.Item({token: address(0), amount: 0});
-    //     IFloodPlain.Hook memory hook = IFloodPlain.Hook({target: address(0), data: hex""});
+        bytes32 conditionHash = clearinghouse.hashCondition(condition);
 
-    //     IFloodPlain.Item[] memory offer = new IFloodPlain.Item[](3);
-    //     offer[0] = item;
-    //     offer[1] = item;
-    //     offer[2] = item;
+        assertEq(
+            conditionHash,
+            0xbde287ad2f06064fff4a014e3d93a86d8264413f567c911c6a26ab921fa1d4c5
+        );
+    }
 
-    //     IFloodPlain.Hook[] memory preHooks = new IFloodPlain.Hook[](1);
-    //     preHooks[0] = hook;
+    function testMetadataHash() public {
+        IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
+            genesis: 1,
+            expiration: 2,
+            trackingCode: "KWENTA",
+            referrer: 0x1234567890AbcdEF1234567890aBcdef12345678
+        });
 
-    //     IFloodPlain.Hook[] memory postHooks = new IFloodPlain.Hook[](2);
-    //     postHooks[0] = hook;
-    //     postHooks[1] = hook;
+        bytes32 metadataHash = clearinghouse.hashMetadata(metadata);
 
-    //     IFloodPlain.Order memory order = IFloodPlain.Order({
-    //         offerer: address(0),
-    //         zone: address(0),
-    //         recipient: address(0),
-    //         offer: offer,
-    //         consideration: item,
-    //         deadline: 0,
-    //         nonce: 0,
-    //         preHooks: preHooks,
-    //         postHooks: postHooks
-    //     });
+        assertEq(
+            metadataHash,
+            0x6609a75dcac514ae8a054c1e4e48c2ae0f429cf00c70f18debcead49624701c4
+        );
+    }
 
-    //     bytes32 orderHash = orderSignature.hash(order);
+    function testTradeHash() public {
+        IClearinghouse.Trade memory trade = IClearinghouse.Trade({
+            t: IClearinghouse.Type.MARKET,
+            marketId: 1,
+            size: 1,
+            price: 1
+        });
 
-    //     assertEq(orderHash, 0xece53f158244592f601148c3a00ab85c63d4bf4ce04da8375e216dfc40694b32);
-    // }
+        bytes32 tradeHash = clearinghouse.hashTrade(trade);
 
-    // function test_permitHash() public {
-    //     IFloodPlain.Item memory item = IFloodPlain.Item({token: address(0), amount: 0});
-    //     IFloodPlain.Hook memory hook = IFloodPlain.Hook({target: address(0), data: hex""});
+        assertEq(
+            tradeHash,
+            0x3de551bc2a7cc85cb9b4546a6e15e5f4e709c46393642ea914ba2282dc1e7a81
+        );
+    }
 
-    //     IFloodPlain.Item[] memory offer = new IFloodPlain.Item[](3);
-    //     offer[0] = item;
-    //     offer[1] = item;
-    //     offer[2] = item;
+    function testTraderHash() public {
+        IClearinghouse.Trader memory trader = IClearinghouse.Trader({
+            nonce: 1,
+            accountId: 1,
+            signer: 0x96aA512665C429cE1454abe871098E4858c9c147
+        });
 
-    //     IFloodPlain.Hook[] memory preHooks = new IFloodPlain.Hook[](1);
-    //     preHooks[0] = hook;
+        bytes32 traderHash = clearinghouse.hashTrader(trader);
 
-    //     IFloodPlain.Hook[] memory postHooks = new IFloodPlain.Hook[](2);
-    //     postHooks[0] = hook;
-    //     postHooks[1] = hook;
-
-    //     IFloodPlain.Order memory order = IFloodPlain.Order({
-    //         offerer: address(0),
-    //         zone: address(0),
-    //         recipient: address(0),
-    //         offer: offer,
-    //         consideration: item,
-    //         deadline: 0,
-    //         nonce: 0,
-    //         preHooks: preHooks,
-    //         postHooks: postHooks
-    //     });
-
-    //     bytes32 permitHash = orderSignature.hashAsWitness(order, address(0x420));
-
-    //     assertEq(permitHash, 0x8aea3ef4ab58e3cfd67a39b948421def10f4424ee4be0b8c1be0bb6c05bb022a);
-    // }
-
-    // // `test_permitHash` checks the whole PermitBatchWitnessTransferFrom struct typehash, but
-    // // what is passed to the Permit 2 is only the partial type string. Below tests the partial
-    // // typestring against the whole typestring, which was implicitly checked to be true in the
-    // // previous `test_permitHash` test.
-    // function test_witnessTypeString() public {
-    //     bytes32 permitTypeHash = keccak256(
-    //         bytes(
-    //             string.concat(
-    //                 PermitHash._PERMIT_BATCH_WITNESS_TRANSFER_FROM_TYPEHASH_STUB, OrderHash._WITNESS_TYPESTRING
-    //             )
-    //         )
-    //     );
-    //     assertEq(permitTypeHash, OrderHash._PERMIT_TYPEHASH);
-    // }
+        assertEq(
+            traderHash,
+            0x5a44a495ae61ebfb01c627426271dfc5951c4411a0912b0ef270f7086108f8d6
+        );
+    }
 }
