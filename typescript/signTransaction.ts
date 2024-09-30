@@ -192,12 +192,9 @@ async function signOrder() {
     )
   )
 
-  // Hash the array of condition hashes
+  // Hash the array of condition hashes using tight packing (encodePacked)
   const conditionsHash = keccak256(
-    encodeAbiParameters( //todo this has to be encode packed
-      parseAbiParameters('bytes32[]'),
-      [conditionHashes]
-    )
+    concat(conditionHashes)
   )
 
   // Hash the metadata
