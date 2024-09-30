@@ -19,7 +19,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testSettle() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         MockClearinghouse.Response memory response = clearingHouse.settle(
@@ -30,7 +30,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleSuccess() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         MockClearinghouse.Response memory response = clearingHouse.canSettle(
@@ -41,7 +41,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleTooManyOrders() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.orders = new IClearinghouse.Order[](3);
@@ -54,7 +54,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleNoOrders() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.orders = new IClearinghouse.Order[](0);
@@ -67,7 +67,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleNotEnoughOrders() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.orders = new IClearinghouse.Order[](1);
@@ -80,7 +80,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleInvalidNumberOfSignatures() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.orders = new IClearinghouse.Order[](2);
@@ -94,7 +94,7 @@ contract MockClearingHouseTest is Test {
 
     function testFuzzCanSettleInvalidNumberOfSignatures(uint8 amount) public {
         vm.assume(amount != 2);
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.orders = new IClearinghouse.Order[](2);
@@ -107,7 +107,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleInvalidSignature() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.signatures[0] = abi.encodePacked(
@@ -123,7 +123,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleInvalidSignature2() public {
-        MockClearinghouse.Request memory request = createRequest(
+        MockClearinghouse.Request memory request = createBasicRequest(
             owner1PrivateKey
         );
         request.signatures[1] = abi.encodePacked(
@@ -139,7 +139,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testSigner() public {
-        MockClearinghouse.Order memory order = createOrder();
+        MockClearinghouse.Order memory order = createBasicOrder();
         bytes32 hash = clearingHouse.hash(order);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(owner1PrivateKey, hash);
 
@@ -148,7 +148,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testSignerDeployer() public {
-        MockClearinghouse.Order memory order = createOrder();
+        MockClearinghouse.Order memory order = createBasicOrder();
         bytes32 hash = clearingHouse.hash(order);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerPrivateKey, hash);
 
@@ -159,10 +159,10 @@ contract MockClearingHouseTest is Test {
 
     // helpers
 
-    function createRequest(
+    function createBasicRequest(
         uint256 privateKey
     ) public returns (MockClearinghouse.Request memory) {
-        IClearinghouse.Order memory order = createOrder();
+        IClearinghouse.Order memory order = createBasicOrder();
         bytes32 hash = clearingHouse.hash(order);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, hash);
         // Pack the ECDSA signature
@@ -178,7 +178,7 @@ contract MockClearingHouseTest is Test {
         return IClearinghouse.Request({orders: orders, signatures: signatures});
     }
 
-    function createOrder() public returns (MockClearinghouse.Order memory) {
+    function createBasicOrder() public returns (MockClearinghouse.Order memory) {
         IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
             genesis: 0,
             expiration: 0,

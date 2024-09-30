@@ -113,6 +113,34 @@ const order: FullOrder = {
   }
 }
 
+const order2: FullOrder = {
+  conditions: [
+    {
+      target: "0x1234567890AbcdEF1234567890aBcdef12345678",
+      selector: "0x35b09a6e",
+      data: '0x' + Buffer.from('data').toString('hex'),
+      expected: '0x' + Buffer.from('expected').toString('hex').padEnd(64, '0')
+    }
+  ],
+  metadata: {
+    genesis: 1,
+    expiration: 2,
+    trackingCode: '0x' + Buffer.from('KWENTA').toString('hex').padEnd(64, '0'),
+    referrer: "0x1234567890AbcdEF1234567890aBcdef12345678"
+  },
+  trade: {
+    t: 0, // BUY
+    marketId: 1,
+    size: 1,
+    price: 1
+  },
+  trader: {
+    nonce: 2,
+    accountId: 1,
+    signer: "0x96aA512665C429cE1454abe871098E4858c9c147"
+  }
+}
+
 // Sign the data
 async function signOrder() {
 
@@ -126,6 +154,13 @@ async function signOrder() {
     primaryType: 'Order',
     types: orderTypes,
     message: order,
+  })
+
+  const signature2 = await wallet.signTypedData({
+    domain: domain,
+    primaryType: 'Order',
+    types: orderTypes,
+    message: order2,
   })
 
   console.log("Signature:", signature)
@@ -276,11 +311,11 @@ async function signOrder() {
   console.log("Struct Hash (Script):", structHash);
   console.log("Digest (Script):", digest);
 
-  return { order, signature, wallet, orderHash }
+  return { order, signature, signature2, wallet, orderHash }
 }
 
 // Interact with the contract on Tenderly
-async function interactWithContract(order: FullOrder, signature: string, walletClient: any, orderHash: string) {
+async function interactWithContract(order: FullOrder, signature: string, signature2:string, walletClient: any, orderHash: string) {
   const publicClient = createPublicClient({
     chain: base,
     transport: http(process.env.BASE_TENDERLY_RPC_URL as string) // Load Tenderly RPC URL from .env file
@@ -296,8 +331,8 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
   })
 
   const request = {
-    orders: [order, order],
-    signatures: [signature, signature]
+    orders: [order, order2],
+    signatures: [signature, signature2]
   }
 
   const halfFullRequest = {
@@ -333,6 +368,14 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
 
   try {
     const response = await contract.read.canSettle([request])
+    console.log("Response:", response)
+  } catch (error) {
+    console.error("Error interacting with contract:", error)
+    throw error
+  }
+
+  try {
+    const response = await contract.read.canSettleExposed([request])
     console.log("Response:", response)
   } catch (error) {
     console.error("Error interacting with contract:", error)
@@ -400,9 +443,9 @@ async function interactWithContract(order: FullOrder, signature: string, walletC
 
 async function main() {
   console.log("Signing order...")
-  const { order, signature, wallet, orderHash } = await signOrder()
+  const { order, signature, signature2, wallet, orderHash } = await signOrder()
   console.log("Interacting with contract...")
-  await interactWithContract(order, signature, wallet, orderHash)
+  await interactWithContract(order, signature, signature2, wallet, orderHash)
 }
 
 main().catch(console.error)

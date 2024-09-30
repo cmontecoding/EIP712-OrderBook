@@ -87,6 +87,46 @@ contract MockClearinghouse is IClearinghouse {
         return Response({success: true, data: "Settlement successful"});
     }
 
+    function canSettleExposed(
+        Request calldata request
+    ) external view returns (Response memory, bytes memory, uint256) {
+        if (request.orders.length > 2) {
+            return (Response({success: false, data: "Too many orders"}), "", 0);
+        } else if (request.orders.length == 0) {
+            return (Response({success: false, data: "No orders"}), "", 0);
+        } else if (request.orders.length == 1) {
+            return (Response({success: false, data: "Not enough orders"}), "", 0);
+        }
+        if (request.signatures.length != request.orders.length) {
+            return
+                (Response({
+                    success: false,
+                    data: "Invalid number of signatures"
+                }), "", 0);
+        }
+        for (uint256 i = 0; i < request.orders.length; i++) {
+            Order memory order = request.orders[i];
+            bytes memory signature = request.signatures[i];
+            bool validSignature = SignatureCheckerLib.isValidSignatureNow(
+                order.trader.signer,
+                hash(order),
+                signature
+            );
+            if (!validSignature) {
+                return(
+                    Response({
+                        success: false,
+                        data: "Invalid signature for order: "
+                    }), signature, i);
+            }
+        }
+        if (request.orders[0].trade.price != request.orders[1].trade.price) {
+            return (Response({success: false, data: "Invalid trade pair"}), "", 0);
+        } // todo also assert its == pyth
+        // todo assert that the trades are opposites (short and long)
+        return (Response({success: true, data: "Settlement successful"}), "", 0);
+    }
+
     function hash(
         Order memory order
     ) public view override returns (bytes32) {

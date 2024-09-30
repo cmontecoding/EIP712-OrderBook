@@ -7,7 +7,7 @@ import {Test} from "forge-std/Test.sol";
 import {MockClearinghouseInternals} from "./utils/MockClearinghouseInternals.sol";
 import {IClearinghouse} from "synthetix-v3/markets/perps-market/contracts/interfaces/IClearinghouse.sol";
 
-contract OrderHashTest is Test {
+contract HashesTest is Test {
     MockClearinghouseInternals clearinghouse;
 
     function setUp() public {
@@ -69,41 +69,7 @@ contract OrderHashTest is Test {
     // test hashes
 
     function testOrderHash() public {
-        IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
-            genesis: 1,
-            expiration: 2,
-            trackingCode: "KWENTA",
-            referrer: 0x1234567890AbcdEF1234567890aBcdef12345678
-        });
-        IClearinghouse.Trader memory trader = IClearinghouse.Trader({
-            nonce: 1,
-            accountId: 1,
-            signer: 0x96aA512665C429cE1454abe871098E4858c9c147
-        });
-        IClearinghouse.Trade memory trade = IClearinghouse.Trade({
-            t: IClearinghouse.Type.MARKET,
-            marketId: 1,
-            size: 1,
-            price: 1
-        });
-        IClearinghouse.Condition memory condition = IClearinghouse.Condition({
-            target: 0x1234567890AbcdEF1234567890aBcdef12345678,
-            selector: 0x35b09a6e,
-            data: "data",
-            expected: "expected"
-        });
-
-        IClearinghouse.Condition[]
-            memory conditions = new IClearinghouse.Condition[](1);
-        conditions[0] = condition;
-
-        IClearinghouse.Order memory order = IClearinghouse.Order({
-            metadata: metadata,
-            trader: trader,
-            trade: trade,
-            conditions: conditions
-        });
-
+        IClearinghouse.Order memory order = createOrderSameAsScript();
         bytes32 orderHash = clearinghouse.hashOrder(order);
 
         assertEq(
@@ -174,5 +140,56 @@ contract OrderHashTest is Test {
             traderHash,
             0x5a44a495ae61ebfb01c627426271dfc5951c4411a0912b0ef270f7086108f8d6
         );
+    }
+
+    function testSignature() public {
+        IClearinghouse.Order memory order = createOrderSameAsScript();
+        bytes32 hash = clearinghouse.hashOrder(order);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(vm.envUint("PRIVATE_KEY"), hash);
+        // Pack the ECDSA signature
+        bytes memory packedSignature = abi.encodePacked(r, s, v);
+        assertEq("0x87b2f2a68bb64e224d377e64d4732dfddf3b869c1b5f9ee24f908f1f34a10c537a305c682fff8e453546851437c65899da6a034f685c4abc37d8f7dd3ae1e20a1c", packedSignature);
+    }
+
+    // helpers
+
+    function createOrderSameAsScript() public returns (IClearinghouse.Order memory) {
+        IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
+            genesis: 1,
+            expiration: 2,
+            trackingCode: "KWENTA",
+            referrer: 0x1234567890AbcdEF1234567890aBcdef12345678
+        });
+        IClearinghouse.Trader memory trader = IClearinghouse.Trader({
+            nonce: 1,
+            accountId: 1,
+            signer: 0x96aA512665C429cE1454abe871098E4858c9c147
+        });
+        IClearinghouse.Trade memory trade = IClearinghouse.Trade({
+            t: IClearinghouse.Type.MARKET,
+            marketId: 1,
+            size: 1,
+            price: 1
+        });
+        IClearinghouse.Condition memory condition = IClearinghouse.Condition({
+            target: 0x1234567890AbcdEF1234567890aBcdef12345678,
+            selector: 0x35b09a6e,
+            data: "data",
+            expected: "expected"
+        });
+
+        IClearinghouse.Condition[]
+            memory conditions = new IClearinghouse.Condition[](1);
+        conditions[0] = condition;
+
+        IClearinghouse.Order memory order = IClearinghouse.Order({
+            metadata: metadata,
+            trader: trader,
+            trade: trade,
+            conditions: conditions
+        });
+
+        return order;
     }
 }
