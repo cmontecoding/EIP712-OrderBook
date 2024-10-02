@@ -19,10 +19,10 @@ contract MockClearingHouseTest is Test {
     }
 
     function testSettle() public {
-        MockClearinghouse.Request memory request = createBasicRequest(
+        MockClearinghouse.Request memory request = createBasicRequestOppositeSizes(
             owner1PrivateKey
         );
-        MockClearinghouse.Response memory response = clearingHouse.settle(
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
             request
         );
         assertTrue(response.success);

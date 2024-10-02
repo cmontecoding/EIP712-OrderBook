@@ -47,12 +47,12 @@ contract MockClearinghouse is IClearinghouse {
     function settle(
         Request calldata request
     ) external override returns (Response memory) {
-        return Response({success: true, data: "Settlement successful"});
+        return canSettle(request);
     }
 
     function canSettle(
         Request calldata request
-    ) external view override returns (Response memory) {
+    ) public view override returns (Response memory) {
         if (request.orders.length > 2) {
             return Response({success: false, data: "Too many orders"});
         } else if (request.orders.length == 0) {
