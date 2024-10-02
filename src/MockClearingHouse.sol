@@ -8,10 +8,13 @@ contract MockClearinghouse is IClearinghouse {
     /// @notice The name of this contract
     string public constant name = "Mock Clearinghouse";
 
+    /// @notice The version of this contract
+    string public constant version = "1";
+
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256(
-            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         );
 
     /// @notice The EIP-712 typehash for the order struct used by the contract
@@ -134,6 +137,7 @@ contract MockClearinghouse is IClearinghouse {
             abi.encode(
                 DOMAIN_TYPEHASH,
                 keccak256(bytes(name)),
+                keccak256(bytes(version)),
                 _getChainId(),
                 address(this)
             )
@@ -153,6 +157,7 @@ contract MockClearinghouse is IClearinghouse {
             abi.encode(
                 DOMAIN_TYPEHASH,
                 keccak256(bytes(name)),
+                keccak256(bytes(version)),
                 _getChainId(),
                 address(this)
             )
