@@ -84,50 +84,15 @@ contract MockClearinghouse is IClearinghouse {
             }
         }
         if (request.orders[0].trade.price != request.orders[1].trade.price) {
-            return Response({success: false, data: "Invalid trade pair"});
-        } // todo also assert its == pyth
-        // todo assert that the trades are opposites (short and long)
+            return Response({success: false, data: "Invalid trade pair: price"});
+        } // todo (future) also assert its == pyth
+        // Assert that the trades are opposites (short and long)
+        bool order1IsLong = request.orders[0].trade.size > 0;
+        bool order2IsLong = request.orders[1].trade.size > 0;
+        if (order1IsLong == order2IsLong) {
+            return Response({success: false, data: "Invalid trade pair: size"});
+        }
         return Response({success: true, data: "Settlement successful"});
-    }
-
-    function canSettleExposed(
-        Request calldata request
-    ) external view returns (Response memory, bytes memory, uint256) {
-        if (request.orders.length > 2) {
-            return (Response({success: false, data: "Too many orders"}), "", 0);
-        } else if (request.orders.length == 0) {
-            return (Response({success: false, data: "No orders"}), "", 0);
-        } else if (request.orders.length == 1) {
-            return (Response({success: false, data: "Not enough orders"}), "", 0);
-        }
-        if (request.signatures.length != request.orders.length) {
-            return
-                (Response({
-                    success: false,
-                    data: "Invalid number of signatures"
-                }), "", 0);
-        }
-        for (uint256 i = 0; i < request.orders.length; i++) {
-            Order memory order = request.orders[i];
-            bytes memory signature = request.signatures[i];
-            bool validSignature = SignatureCheckerLib.isValidSignatureNow(
-                order.trader.signer,
-                hash(order),
-                signature
-            );
-            if (!validSignature) {
-                return(
-                    Response({
-                        success: false,
-                        data: "Invalid signature for order: "
-                    }), signature, i);
-            }
-        }
-        if (request.orders[0].trade.price != request.orders[1].trade.price) {
-            return (Response({success: false, data: "Invalid trade pair"}), "", 0);
-        } // todo also assert its == pyth
-        // todo assert that the trades are opposites (short and long)
-        return (Response({success: true, data: "Settlement successful"}), request.signatures[0], 0);
     }
 
     function hash(
@@ -147,26 +112,6 @@ contract MockClearinghouse is IClearinghouse {
             abi.encodePacked("\x19\x01", domainSeparator, structHash)
         );
         return digest;
-    }
-
-    // for testing
-    function hashExposed(
-        Order memory order
-    ) public returns (bytes32, bytes32, bytes32) {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                DOMAIN_TYPEHASH,
-                keccak256(bytes(name)),
-                keccak256(bytes(version)),
-                _getChainId(),
-                address(this)
-            )
-        );
-        bytes32 structHash = _hashOrder(order);
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, structHash)
-        );
-        return (digest, domainSeparator, structHash); //temp testing
     }
 
     /*///////////////////////////////////////////////////////////////
