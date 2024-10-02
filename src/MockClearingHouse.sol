@@ -202,7 +202,7 @@ contract MockClearinghouse is IClearinghouse {
                     CONDITION_TYPEHASH,
                     condition.target,
                     condition.selector,
-                    condition.data,
+                    keccak256(condition.data),
                     condition.expected
                 )
             );
