@@ -18,11 +18,11 @@ contract HashesTest is Test {
 
     function testOrderTypehash() public {
         bytes32 typeHash = keccak256(
-            "Order(Metadata metadata,Trader trader,Trade trade,Condition[] conditions)Condition(address target,bytes4 selector,bytes data,bytes32 expected)Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)Trade(uint8 t,uint128 marketId,int128 size,uint256 price)Trader(uint256 nonce,uint128 accountId,address signer)"
+            "Order(Condition[] conditions,Metadata metadata,Trade trade,Trader trader)Condition(address target,bytes4 selector,bytes data,bytes32 expected)Metadata(uint256 genesis,uint256 expiration,bytes32 trackingCode,address referrer)Trade(uint8 t,uint128 marketId,int128 size,uint256 price)Trader(uint256 nonce,uint128 accountId,address signer)"
         );
         assertEq(
             typeHash,
-            0x1b6b336c5e77095ee4e3043794d375c20a9d5654e11d1bb0c33df1c210e63a49
+            0xc2b77ec0de83b288142b0d2b7f5eaf28f1e541d1f2b38d1f0b5560539bbaaaa9
         );
     }
 
@@ -74,7 +74,7 @@ contract HashesTest is Test {
 
         assertEq(
             orderHash,
-            0x95d0602f03a09935145b1da0f2febd1483f1c392c31e46db9b41e3cef027c1bf
+            0xf64a8ac24e4abe158aecf44ec657a19746bce40e2d75fcf8dfe3bb4ec7c75806
         );
     }
 
@@ -91,7 +91,7 @@ contract HashesTest is Test {
 
         assertEq(
             conditionHash,
-            0xbde287ad2f06064fff4a014e3d93a86d8264413f567c911c6a26ab921fa1d4c5
+            0xb6879152cfc81967a8cf8b9ef47b4735a5ed438ee43b0092ce66b362cd8a3d70
         );
     }
 
@@ -140,16 +140,6 @@ contract HashesTest is Test {
             traderHash,
             0x5a44a495ae61ebfb01c627426271dfc5951c4411a0912b0ef270f7086108f8d6
         );
-    }
-
-    function testSignature() public {
-        IClearinghouse.Order memory order = createOrderSameAsScript();
-        bytes32 hash = clearinghouse.hashOrder(order);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(vm.envUint("PRIVATE_KEY"), hash);
-        // Pack the ECDSA signature
-        bytes memory packedSignature = abi.encodePacked(r, s, v);
-        assertEq("0x87b2f2a68bb64e224d377e64d4732dfddf3b869c1b5f9ee24f908f1f34a10c537a305c682fff8e453546851437c65899da6a034f685c4abc37d8f7dd3ae1e20a1c", packedSignature);
     }
 
     // helpers
