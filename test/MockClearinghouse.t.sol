@@ -30,7 +30,7 @@ contract MockClearingHouseTest is Test {
     }
 
     function testCanSettleSuccess() public {
-        MockClearinghouse.Request memory request = createBasicRequest(
+        MockClearinghouse.Request memory request = createBasicRequestOppositeSizes(
             owner1PrivateKey
         );
         MockClearinghouse.Response memory response = clearingHouse.canSettle(
@@ -38,6 +38,28 @@ contract MockClearingHouseTest is Test {
         );
         assertTrue(response.success);
         assertEq(response.data, "Settlement successful");
+    }
+
+    function testCanSettleInvalidTradePairSizeBothLong() public {
+        MockClearinghouse.Request memory request = createBasicRequest(
+            owner1PrivateKey
+        );
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Invalid trade pair: size");
+    }
+
+    function testCanSettleInvalidTradePairSizeBothShort() public {
+        MockClearinghouse.Request memory request = createBasicRequestBothShort(
+            owner1PrivateKey
+        );
+        MockClearinghouse.Response memory response = clearingHouse.canSettle(
+            request
+        );
+        assertFalse(response.success);
+        assertEq(response.data, "Invalid trade pair: size");
     }
 
     function testCanSettleTooManyOrders() public {
@@ -178,6 +200,56 @@ contract MockClearingHouseTest is Test {
         return IClearinghouse.Request({orders: orders, signatures: signatures});
     }
 
+    function createBasicRequestOppositeSizes(
+        uint256 privateKey
+    ) public returns (MockClearinghouse.Request memory) {
+        IClearinghouse.Order memory order = createBasicOrder();
+        bytes32 hash = clearingHouse.hash(order);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, hash);
+        // Pack the ECDSA signature
+        bytes memory packedSignature = abi.encodePacked(r, s, v);
+
+        IClearinghouse.Order memory order2 = createBasicOrderNegativeSize();
+        hash = clearingHouse.hash(order2);
+        (v, r, s) = vm.sign(privateKey, hash);
+        // Pack the ECDSA signature
+        bytes memory packedSignature2 = abi.encodePacked(r, s, v);
+
+        IClearinghouse.Order[] memory orders = new IClearinghouse.Order[](2);
+        orders[0] = order;
+        orders[1] = order2;
+        bytes[] memory signatures = new bytes[](2);
+        signatures[0] = packedSignature;
+        signatures[1] = packedSignature2;
+
+        return IClearinghouse.Request({orders: orders, signatures: signatures});
+    }
+
+    function createBasicRequestBothShort(
+        uint256 privateKey
+    ) public returns (MockClearinghouse.Request memory) {
+        IClearinghouse.Order memory order = createBasicOrderNegativeSize();
+        bytes32 hash = clearingHouse.hash(order);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, hash);
+        // Pack the ECDSA signature
+        bytes memory packedSignature = abi.encodePacked(r, s, v);
+
+        IClearinghouse.Order memory order2 = createBasicOrderNegativeSize();
+        hash = clearingHouse.hash(order2);
+        (v, r, s) = vm.sign(privateKey, hash);
+        // Pack the ECDSA signature
+        bytes memory packedSignature2 = abi.encodePacked(r, s, v);
+
+        IClearinghouse.Order[] memory orders = new IClearinghouse.Order[](2);
+        orders[0] = order;
+        orders[1] = order2;
+        bytes[] memory signatures = new bytes[](2);
+        signatures[0] = packedSignature;
+        signatures[1] = packedSignature2;
+
+        return IClearinghouse.Request({orders: orders, signatures: signatures});
+    }
+
     function createBasicOrder() public returns (MockClearinghouse.Order memory) {
         IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
             genesis: 0,
@@ -196,6 +268,48 @@ contract MockClearingHouseTest is Test {
             t: IClearinghouse.Type.LIMIT,
             marketId: 1,
             size: 1,
+            price: 1
+        });
+
+        IClearinghouse.Condition memory condition = IClearinghouse.Condition({
+            target: address(0),
+            selector: "",
+            data: "",
+            expected: ""
+        });
+
+        IClearinghouse.Condition[]
+            memory conditions = new IClearinghouse.Condition[](1);
+        conditions[0] = condition;
+
+        IClearinghouse.Order memory order = IClearinghouse.Order({
+            metadata: metadata,
+            trader: trader,
+            trade: trade,
+            conditions: conditions
+        });
+
+        return order;
+    }
+
+    function createBasicOrderNegativeSize() public returns (MockClearinghouse.Order memory) {
+        IClearinghouse.Metadata memory metadata = IClearinghouse.Metadata({
+            genesis: 0,
+            expiration: 0,
+            trackingCode: "KWENTA",
+            referrer: address(0)
+        });
+
+        IClearinghouse.Trader memory trader = IClearinghouse.Trader({
+            accountId: 1,
+            nonce: 0,
+            signer: owner1
+        });
+
+        IClearinghouse.Trade memory trade = IClearinghouse.Trade({
+            t: IClearinghouse.Type.LIMIT,
+            marketId: 1,
+            size: -1,
             price: 1
         });
 
