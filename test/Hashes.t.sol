@@ -2,10 +2,8 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-
-import {Test} from "forge-std/Test.sol";
 import {MockClearinghouseInternals} from "./utils/MockClearinghouseInternals.sol";
-import {IClearinghouse} from "synthetix-v3/markets/perps-market/contracts/interfaces/IClearinghouse.sol";
+import {IClearinghouse} from "../src/interfaces/IClearinghouse.sol";
 
 contract HashesTest is Test {
     MockClearinghouseInternals clearinghouse;
