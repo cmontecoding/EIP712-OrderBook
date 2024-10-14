@@ -11,8 +11,6 @@ contract MockClearingHouseTest is Test {
     address owner1 = vm.addr(owner1PrivateKey);
     uint256 owner2PrivateKey = 456;
     address owner2 = vm.addr(owner2PrivateKey);
-    uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-    address deployer = vm.addr(deployerPrivateKey);
 
     function setUp() public {
         clearingHouse = new MockClearinghouse();
@@ -167,16 +165,6 @@ contract MockClearingHouseTest is Test {
 
         address signer = ecrecover(hash, v, r, s);
         assertEq(owner1, signer);
-    }
-
-    function testSignerDeployer() public {
-        MockClearinghouse.Order memory order = createBasicOrder();
-        bytes32 hash = clearingHouse.hash(order);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerPrivateKey, hash);
-
-        address signer = ecrecover(hash, v, r, s);
-        assertEq(deployer, signer);
-        assertEq(0x96aA512665C429cE1454abe871098E4858c9c147, signer);
     }
 
     // helpers
