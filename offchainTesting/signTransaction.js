@@ -137,7 +137,6 @@ async function testContract() {
   console.log("Testing settle function...");
   try {
     const settleResponse = await contract.settle(request);
-    console.log("Settle Response:", settleResponse);
   } catch (error) {
     console.error("Error in settle:", error);
   }
