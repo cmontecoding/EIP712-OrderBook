@@ -85,7 +85,7 @@ contract MockClearinghouse is IClearinghouse {
         }
         if (request.orders[0].trade.price != request.orders[1].trade.price) {
             return Response({success: false, data: "Invalid trade pair: price"});
-        } // todo (future) also assert its == pyth
+        }
         // Assert that the trades are opposites (short and long)
         bool order1IsLong = request.orders[0].trade.size > 0;
         bool order2IsLong = request.orders[1].trade.size > 0;
